@@ -86,3 +86,39 @@ NOTICE THAT WHEN YOU USE EXPRESSION-ORIENTED CODE STYLE YOU HAVE WAY LESS
 LOCAL VARIABLES THAN IN STATEMENT-ORIENTED CODE STYLE
 
 ### A typical stylish case: `move`
+
+A place where it really reads nicely to add a wholly unnecessary Rust block to
+your code is surrounding a `move` closure or `async` block
+
+So instead of writing eg this:
+```
+let (sender, receiver) = channel();
+let contents = vec!["Hello", "World"];
+
+do_some_other_stuff();
+
+let sender = sender.clone();
+let contents_ref = &contents;
+do_something_with(async move {
+    sender.send(contents_ref[0].to_lowercase()).await.unwrap();
+});
+```
+you may often want to use an as-narrowly-placed-as-possible Rust block to
+"segregate" the code related to the `move`:
+```
+let (sender, receiver) = channel();
+let contents = vec!["Hello", "World"];
+
+do_some_other_stuff();
+
+do_something_with({
+    let sender = sender.clone();
+    let contents_ref = &contents;
+    async move {
+        sender.send(contents_ref[0].to_lowercase()).await.unwrap();
+    }
+});
+```
+I personally do this consistently because it "muddies up" less. The top-level
+function body reads more easily and has less local-variable-state floating
+around
