@@ -49,6 +49,9 @@ a single expression by wrapping its initialization in a Rust block:
 ```
 Wow ok. Didn't know you could use Rust blocks that way
 
+This relies on the gorgeous Rust feature (that maybe Coffeescript helped
+inspire?) that the last expression in a block is implicitly "returned"
+
 So now that block "expression" can be used in "expression position"
 grammatically/syntactically eg:
 ```
