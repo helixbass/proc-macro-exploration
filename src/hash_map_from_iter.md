@@ -122,3 +122,129 @@ do_something_with({
 I personally do this consistently because it "muddies up" less. The top-level
 function body reads more easily and has less local-variable-state floating
 around
+
+## `::from_iter()`
+
+One way of expressing `HashSet`/`HashMap` initialization in a single expression
+is using eg `HashSet::from_iter()`. This method is from the
+[`FromIterator`](https://doc.rust-lang.org/stable/std/iter/trait.FromIterator.html)
+trait
+
+As you can see from `HashSet`'s
+[docs](https://doc.rust-lang.org/stable/std/collections/struct.HashSet.html#impl-FromIterator%3CT%3E-for-HashSet%3CT,+S%3E),
+`HashSet::from_iter()` expects to be passed an `Iterator`/`IntoIterator` whose
+`Item` type is the `HashSet` itself's item type (aka `T`)
+
+So in our case we could say:
+```
+HashSet::from_iter([
+    PresentationalMode::Vertical,
+    PresentationalMode::Circular,
+])
+```
+If you're not intimately familiar with `Iterator`/`IntoIterator`, the specific
+mechanics of this line of code is:
+
+The type of the argument passed to `HashSet::from_iter()` is I believe
+`[PresentationalMode; 2]` (aka an array (rather than `Vec`) of
+`PresentationalMode`'s with length 2)
+
+Arrays implement `IntoIterator` over their item type. So clearly under the hood
+`HashSet::from_iter()` is calling `.into_iter()` on this array and then
+initializing itself as it consumes the resulting
+`Iterator<Item = PresentationalMode>`'s items
+
+Cool that is nicer I'd say
+
+## `.collect()`
+
+We've all seen `.collect()` being used to "accumulate" the results of an
+iterator into a `Vec`
+
+But I don't think everyone knows that `.collect()` is built on top of
+`FromIterator`!
+
+(So when we call `.collect()` to accumulate an iterator into a `Vec`, we can
+safely surmise that `Vec<T>` implements `FromIterator` for
+`Iterator`/`IntoIterator`'s whose `Item` type is `T`)
+
+Ok mind-blowing insight into very standard `.collect()` Rust code if you didn't
+already know that
+
+Well so same principle at work, `HashSet`'s as we just saw above also implement
+`FromIterator` for its item type
+
+So in our case we can also create our `HashSet` this way:
+```
+[
+    PresentationalMode::Vertical,
+    PresentationalMode::Circular,
+].collect()
+```
+
+Cute.
+
+#### and `.collect()` for `HashMap`'s
+
+`HashMap`'s also implement `FromIterator`. In their case they expect key-value
+tuples (`(K, V)`) as the iterated item type (this is similar to how iterating
+over a `HashMap` yields key-value tuples, no?)
+
+So similarly to initialize our `HashMap` we can say:
+```
+[(
+    PresentationalMode::Vertical,
+    PresentationalModeOptions {
+        immediate: true,
+        valid_children_presentational_modes: Some(valid_children_presentational_modes),
+        last_usage_hints: None,
+        height: None,
+        max_height: None,
+        width: None,
+        max_width: None,
+    }
+)].collect()
+```
+
+To dissect this if the syntax is a bit dense/overwhelming:
+
+`[(a, b)]` is a single-item array whose item type is a two-item tuple
+
+So our `[...]`'s type is `[(PresentationalMode, PresentationalModeOptions); 1]`
+
+Ok so this array type implements `IntoIterator` with `Item = (PresentationalMode, PresentationalModeOptions)`
+
+And in fact that `Item` type is the correct one to initialize a
+`HashMap<PresentationalMode, PresentationalModeOptions>` via `.collect()`
+(aka via `HashMap::from_iter()`/`FromIterator`)
+
+Brilliant. We've made our initialization code prettier I'd say
+
+At this point the whole thing would look like:
+```
+StylingOptions {
+    colors: vec![
+        Color::Red,
+        Color::White,
+        Color::Blue,
+    ],
+    presentational_modes: [(
+        PresentationalMode::Vertical,
+        PresentationalModeOptions {
+            immediate: true,
+            valid_children_presentational_modes: Some([
+                PresentationalMode::Vertical,
+                PresentationalMode::Circular,
+            ].collect()),
+            last_usage_hints: None,
+            height: None,
+            max_height: None,
+            width: None,
+            max_width: None,
+        },
+    )].collect(),
+}
+```
+
+Next we can use typical `::new()` methods to arguably make our initialization
+code more clean, idiomatic and perhaps flexible
